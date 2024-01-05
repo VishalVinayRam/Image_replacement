@@ -12,7 +12,6 @@ def init():
     captioner = pipeline(
         "image-to-text",
         model="Salesforce/blip-image-captioning-base",
-        prompt=PROMPT
     )
 
 
