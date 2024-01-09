@@ -1,5 +1,5 @@
 import torch
-from diffusers import StableDiffusionControlNetPipeline, ControlNetModel, AutoencoderKL, UniPCMultistepScheduler
+from diffusers import StableDiffusionXLControlNetPipeline, ControlNetModel, AutoencoderKL, UniPCMultistepScheduler
 from diffusers import LCMScheduler, AutoPipelineForText2Image, LCMLora, LoRA
 
 model_id = "stabilityai/stable-diffusion-xl-base-1.0"
