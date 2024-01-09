@@ -1,8 +1,11 @@
 import torch
 from diffusers import StableDiffusionXLControlNetPipeline, ControlNetModel, AutoencoderKL, UniPCMultistepScheduler
+from diffusers import LCMLora, LoRA
+
+model_id = "stabilityai/stable-diffusion-xl-base-1.0"
+adapter_id = "latent-consistency/lcm-lora-sdxl"
 
 pipe = None
-
 
 def init():
     global pipe
@@ -22,24 +25,31 @@ def init():
         torch_dtype=torch.float16,
     ).to("cuda")
 
+    print("Initializing LCM LoRA...")
+
+    lcm_lora = LCMLora.from_pretrained(adapter_id).to("cuda")
+
     print("Initializing SDXL pipeline...")
 
     pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
-        "stabilityai/stable-diffusion-xl-base-1.0",
+        model_id,
         controlnet=[depth_controlnet],
         vae=vae,
         variant="fp16",
         use_safetensors=True,
         torch_dtype=torch.float16
-        # low_cpu_mem_usage=True
     ).to("cuda")
 
+    # Add LoRA and LCM to the pipeline
+    pipe.add_residual_adapter("lcm_lora", LoRA.from_pretrained(adapter_id), adapter_weight=1.0)
+    
     pipe.enable_model_cpu_offload()
-    # speed up diffusion process with faster scheduler and memory optimization
     pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
-    # remove following line if xformers is not installed
     pipe.enable_xformers_memory_efficient_attention()
 
+    # Load and fuse LoRA weights
+    pipe.load_lora_weights(adapter_id)
+    pipe.fuse_lora()
 
 def run_pipeline(image, positive_prompt, negative_prompt, seed):
     if seed == -1:
@@ -61,3 +71,6 @@ def run_pipeline(image, positive_prompt, negative_prompt, seed):
     ).images
 
     return images
+
+prompt = "Self-portrait oil painting, a beautiful cyborg with golden hair, 8k"
+image = pipe(prompt=prompt, num_inference_steps=4, guidance_scale=0).images[0]
